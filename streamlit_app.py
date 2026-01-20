@@ -40,15 +40,16 @@ if not vop:
 titulo = f"Curvas VOP - {sexo}"
 linea = 'dashed' if sexo == 'Masculino' else 'solid'
 letra = 'h' if sexo == 'Masculino' else 'm'
+curva_default = f"{letra}50"
 curvas_config = [
     (f"{letra}95", "orchid", "95"),
     (f"{letra}75", "deepskyblue", "75"),
-    (f"{letra}50", "limegreen", "50"),
     (f"{letra}25", "peru", "25"),
     (f"{letra}5",  "lightcoral", "5"),
 ]
 
 # Crear gráfico
+fig1, ax1 = plt.subplots(figsize=(6, 2))
 fig, ax = plt.subplots(figsize=(6, 2))
 curvas = []
 
@@ -56,7 +57,10 @@ def generar_curva(ax, datos_x, datos_y, color, nombre, linea):
     curva, = ax.plot(datos_x, datos_y, color=color, linestyle=linea, label=nombre)
     return curva
 
-# Dibujar curvas
+# Dibujar curva por defecto
+curva_def = generar_curva(ax1, data[curva_default]["x"], data[curva_default]["y"], "limegreen", "50", linea)
+
+# Dibujar curvas restantes
 for key, color, label in curvas_config:
     curva = generar_curva(ax, data[key]["x"], data[key]["y"], color, label, linea)
     curvas.append(curva)
@@ -74,22 +78,34 @@ plt.subplots_adjust(right=0.78)
 def edad_por_vop(curva, vop):
     return np.interp(vop, curva.get_ydata(), curva.get_xdata())
 
-# Dataframe de resultados
-rows = []
+# Función para armar el Dataframe de las curvas
+def armar_dataframe(curvas, vop):
+    rows = []
+    for curva in curvas:
+        edad_estimada = edad_por_vop(curva, vop)
+        rows.append({
+            "Curva": curva.get_label(),
+            "Edad": round(edad_estimada, 2)
+        })
+    return pd.DataFrame(rows)
+
+# Función marcar edad estimada en el gráfico
+def marcar_edad_estimada(ax, edad, vop):
+    ax.plot(edad, vop, marker="x", color="red")
+
+# Calcular edad estimada y marcar en gráfico
+edad_estimada = edad_por_vop(curva_def, vop)
+marcar_edad_estimada(ax1, edad_estimada, vop)
+df_resultado = armar_dataframe([curva_def], vop)
+
 for curva in curvas:
     edad_estimada = edad_por_vop(curva, vop)
-
-    # Dibujar puntos
-    ax.plot(edad_estimada, vop, marker="x", color="red")
-
-    rows.append({
-        "Curva": curva.get_label(),
-        "Edad": round(edad_estimada, 2)
-    })
-
-df_resultado = pd.DataFrame(rows)
-
+    marcar_edad_estimada(ax, edad_estimada, vop)
+df_resultados = armar_dataframe(curvas, vop) 
 
 # Mostrar gráfico y tabla
-st.pyplot(fig)
+st.pyplot(fig1)
 st.dataframe(df_resultado, width=400)
+
+st.pyplot(fig)
+st.dataframe(df_resultados, width=400)
